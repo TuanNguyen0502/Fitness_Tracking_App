@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFEBE0"
+    tools:context=".MainActivity">
+
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="143dp"
+        android:src="@drawable/app_logo" />
+
+    <TextView
+        android:id="@+id/textView_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="145dp"
+        android:text="Count Your Steps"
+        android:textColor="#545454"
+        android:textSize="24sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/textView_stepCount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/textView_title"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="24dp"
+        android:text="0"
+        android:textColor="#545454"
+        android:textSize="72sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/textView_goal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/textView_stepCount"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp"
+        android:text="Goal: 32/50 km"
+        android:textColor="#545454"
+        android:textSize="18sp" />
+
+    <TextView
+        android:id="@+id/textView_distance"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/textView_goal"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp"
+        android:text="distance"
+        android:textColor="#545454"
+        android:textSize="18sp" />
+
+    <TextView
+        android:id="@+id/textView_calories"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/textView_distance"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp"
+        android:text="calories"
+        android:textColor="#545454"
+        android:textSize="18sp" />
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="match_parent"
+        android:layout_height="10dp"
+        android:layout_below="@id/textView_calories"
+        android:layout_marginLeft="20dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginRight="20dp"
+        android:max="100"
+        android:progress="64"
+        android:progressDrawable="@drawable/progressbar_drawable" />
+
+    <LinearLayout
+        android:id="@+id/linearLayout1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/progressBar"
+        android:gravity="center_horizontal"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/button_reset"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Reset Step" />
+
+        <Button
+            android:id="@+id/button_setGoal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Set Goal" />
+
+        <Button
+            android:id="@+id/button_setHeight"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Set Height" />
+    </LinearLayout>
+
+</RelativeLayout>
+
