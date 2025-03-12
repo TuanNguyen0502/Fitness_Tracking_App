@@ -1,10 +1,10 @@
 package hcmute.edu.vn.hongtuan;
 
+import android.Manifest;
 import android.app.Dialog;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
 import android.widget.Button;
@@ -18,31 +18,21 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.lifecycle.ViewModelProvider;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-import hcmute.edu.vn.hongtuan.model.StepDatabaseHelper;
+import hcmute.edu.vn.hongtuan.model.StepViewModel;
 
-public class MainActivity extends AppCompatActivity implements SensorEventListener {
+public class MainActivity extends AppCompatActivity {
     private TextView textView_stepCount, textView_distance, textView_calories, textView_goal;
-    private Button button_reset, button_setGoal, button_setHeight;
-    private SensorManager sensorManager;
-    private Sensor accelerometer;
+    private Button button_reset, button_setGoal, button_setHeight, button_start, button_stop;
+    private StepViewModel stepViewModel;
     private StepDatabaseHelper stepDatabaseHelper;
-    private int stepCount = 0, goal = 500, height = 170;
+    private int stepCount = 0, goal, height = 170;
     private float distance = 0, calories = 0;
-    private long lastUpdate = 0;
-    private float lastX, lastY, lastZ;
-    private static final float STEP_THRESHOLD = 1.0f;  // Vertical movement sensitivity
-    private static final float MOVE_THRESHOLD = 1.5f;  // Forward movement sensitivity
-    private static final float SWAY_THRESHOLD = 1.5f;  // Sideways movement limit
-    private static final float WALKING_THRESHOLD = 1200f;  // Adjust based on testing
-    private static final float RUNNING_THRESHOLD = 2500f;  // Running requires higher speed
-    private static final float STEP_LENGTH = 0.43F; // the ratio between a person's stride length and their height is usually equal to 0.43
-    private static final float CALORIES_RUNNING = 0.1F; // the average person burns 0.1 calories per step
-    private static final float CALORIES_WALKING = 0.04F; // the average person burns 0.04 calories per step
     private static final int DIALOG_GOAL_ID = 0;
     private static final int DIALOG_HEIGHT_ID = 1;
 
@@ -57,85 +47,19 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             return insets;
         });
 
+        // Initialize UI components
         initialize();
+        goal = stepDatabaseHelper.getGoal(new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date()));
+        textView_goal.setText("🎯 Goal: " + goal + " steps");
+        // Start step counting
+        startStepCounting();
 
-        // get the default sensor of the specified type
-        sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-        if (sensorManager != null) {
-            // get the accelerometer sensor
-            accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-            // register the sensor listener to listen to the accelerometer sensor
-            // the sensor will be registered with a delay of SENSOR_DELAY_NORMAL
-            // the listener will be called when the sensor detects a change in the value of the sensor
-            sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
-        }
-
-        getDataFromDatabase();
-        setTextViews();
-
-        if (goal == 0) {
-            showDialog(DIALOG_GOAL_ID);
-        }
-        if (height == 0) {
-            showDialog(DIALOG_HEIGHT_ID);
-        }
-    }
-
-    @Override
-    public void onSensorChanged(SensorEvent sensorEvent) {
-        if (sensorEvent.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-            // current time in milliseconds
-            long curTime = System.currentTimeMillis();
-            if ((curTime - lastUpdate) > 100) { // 100 milliseconds = 0.1 seconds
-                long diffTime = curTime - lastUpdate; // time difference between now and last update
-                lastUpdate = curTime;
-
-                float x = sensorEvent.values[0]; // x-axis (forward and backward)
-                float y = sensorEvent.values[1]; // y-axis (sideways)
-                float z = sensorEvent.values[2]; // z-axis (vertical)
-                float deltaX = Math.abs(x - lastX); // Forward movement change
-                float deltaY = Math.abs(y - lastY);
-                float deltaZ = Math.abs(z - lastZ); // Vertical movement change
-                // Speed formula (scaled for better readability)
-                float speed = (float) Math.sqrt(deltaX * deltaX + deltaZ * deltaZ) / diffTime * 10000;
-
-                // Detect step only if both Z-axis and X-axis movement are above threshold
-                if (deltaZ > STEP_THRESHOLD && (deltaX > MOVE_THRESHOLD || deltaY > SWAY_THRESHOLD)) {
-                    stepCount++;
-
-                    // Calculate Distance (Assume user height is 1.7 meters)
-                    distance = calculateDistance(stepCount, height);
-                    // Calculate Calories Burned
-                    if (speed > RUNNING_THRESHOLD) {
-                        calories = calculateCalories(stepCount, true); // Running if speed is high
-                    } else if (speed > WALKING_THRESHOLD) {
-                        calories = calculateCalories(stepCount, false); // Walking if speed is moderate
-                    }
-
-                    setTextViews();
-                    updateDatabase();
-                }
-                lastX = x;
-                lastY = y;
-                lastZ = z;
-            }
-        }
-    }
-
-    private void checkGoal() {
-        if (stepCount >= goal) {
-            Toast.makeText(getApplicationContext(), "Congratulations! You have reached your goal!", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    public float calculateDistance(int steps, int height) {
-        float stepLength = height * STEP_LENGTH; // Approximate step length in meters
-        return steps * stepLength / 1000;  // Convert to kilometers
-    }
-
-    public float calculateCalories(int steps, boolean isRunning) {
-        float caloriesPerStep = isRunning ? CALORIES_RUNNING : CALORIES_WALKING;
-        return steps * caloriesPerStep;
+        stepViewModel = new ViewModelProvider(this).get(StepViewModel.class);
+        StepCounterService.setViewModel(stepViewModel); // Pass ViewModel to service
+        // Observe LiveData and update UI
+        stepViewModel.getStepCount().observe(this, steps -> textView_stepCount.setText(steps.toString()));
+        stepViewModel.getDistance().observe(this, distance -> textView_distance.setText("🚶 Distance: " + String.format(Locale.getDefault(), "%.2f km", distance)));
+        stepViewModel.getCalories().observe(this, calories -> textView_calories.setText("🔥 Calories Burned: " + String.format(Locale.getDefault(), "%.2f kcal", calories)));
     }
 
     private void setTextViews() {
@@ -172,10 +96,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             distance = 0;
             calories = 0;
             setTextViews();
-            String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
-            stepDatabaseHelper.updateSteps(today, stepCount);
-            stepDatabaseHelper.updateDistance(today, distance);
-            stepDatabaseHelper.updateCalories(today, calories);
+            updateDatabase();
             showDialog(DIALOG_GOAL_ID);
             showDialog(DIALOG_HEIGHT_ID);
         });
@@ -187,6 +108,34 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         button_setHeight.setOnClickListener(v -> {
             showDialog(DIALOG_HEIGHT_ID);
         });
+        button_start = findViewById(R.id.button_start);
+        button_start.setOnClickListener(v -> {
+            startStepCounting();
+        });
+        button_stop = findViewById(R.id.button_stop);
+        button_stop.setOnClickListener(v -> {
+            stopStepCounting();
+        });
+    }
+
+    private void startStepCounting() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (checkSelfPermission(Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{Manifest.permission.ACTIVITY_RECOGNITION}, 100);
+                return;
+            }
+        }
+        Intent serviceIntent = new Intent(this, StepCounterService.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent);
+        }
+        Toast.makeText(this, "Step counting started!", Toast.LENGTH_SHORT).show();
+    }
+
+    private void stopStepCounting() {
+        Intent serviceIntent = new Intent(this, StepCounterService.class);
+        stopService(serviceIntent);
+        Toast.makeText(this, "Step counting stopped!", Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -242,27 +191,5 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 return builder1.create();
         }
         return null;
-    }
-
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int i) {
-
-    }
-
-    @Override
-    public void onPointerCaptureChanged(boolean hasCapture) {
-        super.onPointerCaptureChanged(hasCapture);
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        sensorManager.unregisterListener(this);
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_UI);
     }
 }

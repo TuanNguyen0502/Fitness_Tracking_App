@@ -1,4 +1,4 @@
-package hcmute.edu.vn.hongtuan.model;
+package hcmute.edu.vn.hongtuan;
 
 import android.content.Context;
 import android.database.Cursor;
@@ -28,7 +28,7 @@ public class StepDatabaseHelper extends SQLiteOpenHelper {
                 COLUMN_STEPS + " INTEGER DEFAULT 0, " +
                 COLUMN_DISTANCE + " REAL DEFAULT 0, " +
                 COLUMN_CALORIES + " REAL DEFAULT 0, " +
-                COLUMN_GOAL + " INTEGER DEFAULT 0)";
+                COLUMN_GOAL + " INTEGER DEFAULT 500)";
         sqLiteDatabase.execSQL(createTable);
     }
 
