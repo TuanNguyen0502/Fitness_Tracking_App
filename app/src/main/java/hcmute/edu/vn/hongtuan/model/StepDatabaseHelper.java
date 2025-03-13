@@ -1,4 +1,4 @@
-package hcmute.edu.vn.hongtuan;
+package hcmute.edu.vn.hongtuan.model;
 
 import android.content.Context;
 import android.database.Cursor;

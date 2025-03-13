@@ -12,6 +12,7 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Build;
 import android.os.IBinder;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
@@ -20,6 +21,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
+import hcmute.edu.vn.hongtuan.model.StepDatabaseHelper;
 import hcmute.edu.vn.hongtuan.model.StepViewModel;
 
 public class StepCounterService extends Service implements SensorEventListener {
@@ -28,13 +30,13 @@ public class StepCounterService extends Service implements SensorEventListener {
     private NotificationManager notificationManager;
     private final String CHANNEL_ID = "step_channel";
     private StepDatabaseHelper stepDatabaseHelper;
-    private int stepCount, height = 170;
-    private float distance, calories;
+    private static int stepCount, goal, height = 170;
+    private static float distance, calories;
     private long lastUpdate = 0;
     private float lastX, lastY, lastZ;
-    private static final float STEP_THRESHOLD = 1.5f;  // Vertical movement sensitivity
-    private static final float MOVE_THRESHOLD = 1.5f;  // Forward movement sensitivity
-    private static final float SWAY_THRESHOLD = 1.5f;  // Sideways movement limit
+    private static final float STEP_THRESHOLD = 2.0f;  // Vertical movement sensitivity
+    private static final float MOVE_THRESHOLD = 2.0f;  // Forward movement sensitivity
+    private static final float SWAY_THRESHOLD = 2.0f;  // Sideways movement limit
     private static final float WALKING_THRESHOLD = 1200f;  // Adjust based on testing
     private static final float RUNNING_THRESHOLD = 2500f;  // Running requires higher speed
     private static final float STEP_LENGTH = 0.2F; // the ratio between a person's stride length and their height is usually equal to 0.43
@@ -50,9 +52,12 @@ public class StepCounterService extends Service implements SensorEventListener {
         notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         createNotificationChannel();
 
+        // Register the accelerometer sensor
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        // Check if the device has an accelerometer sensor
         if (stepSensor != null) {
+            // Register the listener
             sensorManager.registerListener(this, stepSensor, SensorManager.SENSOR_DELAY_UI);
         }
 
@@ -62,8 +67,10 @@ public class StepCounterService extends Service implements SensorEventListener {
         // Get data from database
         String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
         stepCount = stepDatabaseHelper.getSteps(today);
+        goal = stepDatabaseHelper.getGoal(today);
         distance = stepDatabaseHelper.getDistance(today);
         calories = stepDatabaseHelper.getCalories(today);
+        updateLiveData();
     }
 
     @Override
@@ -98,23 +105,45 @@ public class StepCounterService extends Service implements SensorEventListener {
                     // Calculate Calories Burned
                     if (speed > RUNNING_THRESHOLD) {
                         calories = calculateCalories(stepCount, true); // Running if speed is high
-                    } else if (speed > WALKING_THRESHOLD) {
+                    } else {
                         calories = calculateCalories(stepCount, false); // Walking if speed is moderate
                     }
 
                     updateDatabase();
+                    updateLiveData();
                 }
                 lastX = x;
                 lastY = y;
                 lastZ = z;
             }
-            if (stepViewModel != null) {
-                stepViewModel.setStepCount(stepCount); // Update LiveData
-                stepViewModel.setDistance(distance);
-                stepViewModel.setCalories(calories);
-            }
             updateNotification("Steps: " + stepCount + " | Distance: " + distance + " km | Calories: " + calories);
+
         }
+    }
+
+    public static void resetStepCount() {
+        stepCount = 0;
+        goal = 0;
+        distance = 0;
+        calories = 0;
+        height = 170;
+        if (stepViewModel != null) {
+            stepViewModel.setStepCount(stepCount);
+            stepViewModel.setGoal(goal);
+            stepViewModel.setDistance(distance);
+            stepViewModel.setCalories(calories);
+        }
+    }
+
+    public static void setGoal(int newGoal) {
+        goal = newGoal;
+        if (stepViewModel != null) {
+            stepViewModel.setGoal(goal);
+        }
+    }
+
+    public static void setHeight(int newHeight) {
+        height = newHeight;
     }
 
     public static void setViewModel(StepViewModel viewModel) {
@@ -129,11 +158,21 @@ public class StepCounterService extends Service implements SensorEventListener {
         return steps * (isRunning ? CALORIES_RUNNING : CALORIES_WALKING);
     }
 
+    private void updateLiveData() {
+        if (stepViewModel != null) {
+            stepViewModel.setStepCount(stepCount);
+            stepViewModel.setGoal(goal);
+            stepViewModel.setDistance(distance);
+            stepViewModel.setCalories(calories);
+        }
+    }
+
     private void updateDatabase() {
         String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
         stepDatabaseHelper.updateSteps(today, stepCount);
         stepDatabaseHelper.updateDistance(today, distance);
         stepDatabaseHelper.updateCalories(today, calories);
+        stepDatabaseHelper.updateGoal(goal);
     }
 
     private Notification createNotification(String content) {
@@ -175,5 +214,6 @@ public class StepCounterService extends Service implements SensorEventListener {
     }
 
     @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {}
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+    }
 }
